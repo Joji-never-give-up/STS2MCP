@@ -5,11 +5,14 @@ as MCP tools for Claude Desktop / Claude Code.
 """
 
 import argparse
-import json
 import sys
+from typing import Any
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+
+from agent_layer import act_impl, get_agent_state, health_check_impl, http_get_json, synthesize_available_actions
+from sts2_game_data import game_data_error, get_relevant_game_data_impl, lookup_game_data_item
 
 mcp = FastMCP("sts2")
 
@@ -67,20 +70,113 @@ def _handle_error(e: Exception) -> str:
 
 
 @mcp.tool()
-async def get_game_state(format: str = "markdown") -> str:
-    """Get the current Slay the Spire 2 game state.
+async def fetch_game_state(format: str = "markdown") -> str:
+    """Get the current game state as markdown or JSON string (human-readable / legacy).
 
-    Returns the full game state including player stats, hand, enemies, potions, etc.
-    The state_type field indicates the current screen (combat, map, event, shop,
-    fake_merchant, etc.).
+    For STS2-Agent-style dicts with synthesized `available_actions`, use `get_game_state`.
 
     Args:
-        format: "markdown" for human-readable output, "json" for structured data.
+        format: "markdown" for human-readable output, "json" for structured text.
     """
     try:
         return await _get({"format": format})
     except Exception as e:
         return _handle_error(e)
+
+
+# ---------------------------------------------------------------------------
+# STS2-Agent-compatible surface (singleplayer): health_check, get_game_state, act, game data
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def health_check() -> dict[str, Any]:
+    """Check whether the STS2_MCP mod HTTP API is reachable (STS2-Agent-style)."""
+    return await health_check_impl(_base_url, _trust_env)
+
+
+@mcp.tool()
+async def get_game_state() -> dict[str, Any]:
+    """Return structured state plus synthesized `available_actions` (sts2-ai-agent skill compatible).
+
+    Multiplayer runs return `ok: false` — use `mp_get_game_state` and `mp_*` tools instead.
+    """
+    return await get_agent_state(_base_url, _trust_env)
+
+
+@mcp.tool()
+async def get_available_actions() -> dict[str, Any]:
+    """List actions the agent_layer can execute via `act` for the current singleplayer state."""
+    raw = await http_get_json(_base_url, _trust_env)
+    if raw.get("_error") == "multiplayer_active":
+        return {
+            "ok": False,
+            "error": {"code": "multiplayer_run", "message": "Use mp_* tools for multiplayer."},
+        }
+    actions = synthesize_available_actions(raw)
+    return {"ok": True, "actions": actions, "state_type": raw.get("state_type")}
+
+
+@mcp.tool()
+async def act(
+    action: str,
+    card_index: int | None = None,
+    target_index: int | None = None,
+    option_index: int | None = None,
+) -> dict[str, Any]:
+    """Execute one STS2-Agent-named action (guided loop). See `get_available_actions` for valid names.
+
+    Maps to STS2_MCP HTTP POST. After each call, re-fetch with `get_game_state`.
+    """
+    return await act_impl(
+        _base_url,
+        _trust_env,
+        action,
+        card_index=card_index,
+        target_index=target_index,
+        option_index=option_index,
+    )
+
+
+@mcp.tool()
+def get_game_data_item(collection: str, item_id: str) -> dict[str, Any] | None:
+    """Return one metadata record from bundled English data (cards, relics, monsters, …)."""
+    if not item_id:
+        return None
+    try:
+        item = lookup_game_data_item(collection, item_id)
+        if item is None:
+            return {"error": {"type": "not_found", "collection": collection, "item_id": item_id}}
+        return dict(item) if isinstance(item, dict) else item
+    except Exception as exc:
+        return game_data_error(collection, exc)
+
+
+@mcp.tool()
+def get_game_data_items(collection: str, item_ids: str) -> dict[str, Any]:
+    """Return multiple metadata records by comma-separated ids."""
+    try:
+        if not item_ids:
+            return {}
+        parts = [s.strip() for s in item_ids.split(",") if s.strip()]
+        result: dict[str, Any] = {}
+        for i in parts:
+            item = lookup_game_data_item(collection, i)
+            result[i] = item
+        return result
+    except Exception as exc:
+        return game_data_error(collection, exc)
+
+
+@mcp.tool()
+async def get_relevant_game_data(collection: str, item_ids: str) -> dict[str, Any]:
+    """Return trimmed fields for the current state_type (combat/shop/event), like sts2-ai-agent."""
+    try:
+        raw = await http_get_json(_base_url, _trust_env)
+        st = str(raw.get("state_type") or "")
+        return get_relevant_game_data_impl(collection, item_ids, st)
+    except Exception as exc:
+        return game_data_error(collection, exc)
 
 
 @mcp.tool()

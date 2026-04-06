@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
+      "mcp__sts2__fetch_game_state",
+      "mcp__sts2__health_check",
       "mcp__sts2__get_game_state",
+      "mcp__sts2__get_available_actions",
+      "mcp__sts2__act",
+      "mcp__sts2__get_game_data_item",
+      "mcp__sts2__get_game_data_items",
+      "mcp__sts2__get_relevant_game_data",
       "mcp__sts2__choose_map_node",
       "mcp__sts2__play_card",
       "mcp__sts2__end_turn",

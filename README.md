@@ -30,7 +30,7 @@ Grab the [latest release](https://github.com/Gennadiyev/STS2MCP/releases/latest)
 
 | I prefer a skill | I prefer an MCP Server |
 |---|---|
-| Tell AI to reference docs/raw-*.md. Sit back, and watch it play. | Requires [Python 3.11+](https://www.python.org/) and [uv](https://docs.astral.sh/uv/). Follow the instructions below ⬇️ |
+| **Cursor:** open this repo as the workspace — Agent Skills under [`.cursor/skills/`](.cursor/skills/) load when relevant (e.g. [`sts2-mcp-player`](.cursor/skills/sts2-mcp-player/SKILL.md) for general play, [`sts2-warrior-player`](.cursor/skills/sts2-warrior-player/SKILL.md) for Ironclad-only). Still add MCP **`sts2`** below. The server exposes **STS2-Agent–style** tools (`health_check`, dict `get_game_state`, `act`, `get_relevant_game_data`) for **singleplayer**; see [`mcp/README.md`](mcp/README.md). **Any client:** also point the model at [`AGENTS.md`](AGENTS.md) and [`docs/raw-simplified.md`](docs/raw-simplified.md). | Requires [Python 3.11+](https://www.python.org/) and [uv](https://docs.astral.sh/uv/). Follow the instructions below ⬇️ |
 
 ```json
 {
@@ -43,7 +43,8 @@ Grab the [latest release](https://github.com/Gennadiyev/STS2MCP/releases/latest)
 }
 ```
 
-**Claude Code**: add to your project's `.mcp.json`:
+**Claude Code**: add the same JSON to your project’s **`.mcp.json`** (or managed config). Agent Skills for Claude Code live under **`.claude/skills/`** (symlinked here to the same content as **`.cursor/skills/`**). After restarting Claude Code, invoke **`/sts2-mcp-player`** or **`/sts2-warrior-player`**, or let Claude load them when your request matches the skill `description` in each `SKILL.md`.
+
 **Claude Desktop**: add to `claude_desktop_config.json` with the same config as above.
 *Other agents should have similar config options for custom MCP servers.*
 

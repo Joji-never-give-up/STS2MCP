@@ -1,10 +1,28 @@
 # MCP Tools
 
-## Singleplayer
+## STS2-Agent–compatible (singleplayer)
+
+These mirror the **sts2-ai-agent** guided surface: one `act()` plus metadata tools. They sit on top of the same HTTP API as the granular tools below.
+
+| Tool | Description |
+|---|---|
+| `health_check()` | Mod HTTP reachable (409 in multiplayer still counts as “mod up”). |
+| `get_game_state()` | **Dict** with `available_actions`, `screen`, `session`, `run`, `player`, `battle`, … plus `raw` mod JSON. |
+| `get_available_actions()` | Same action list as embedded in `get_game_state`. |
+| `act(action, card_index?, target_index?, option_index?)` | Dispatch STS2-Agent-style names (`play_card`, `end_turn`, `choose_map_node`, …). |
+| `get_game_data_item(collection, item_id)` | Bundled English metadata (from `mcp/data/eng`). |
+| `get_game_data_items(collection, item_ids)` | Batch metadata by comma-separated ids. |
+| `get_relevant_game_data(collection, item_ids)` | Trimmed fields using current `state_type`. |
+
+Multiplayer runs: `get_game_state` / `get_available_actions` return `ok: false`; use `mp_*` tools.
+
+**Not ported from sts2-ai-agent:** main-menu / timeline / character-select actions, SSE `wait_for_event`, `wait_until_actionable`, planner/combat handoff, runtime knowledge files, `run_console_command`. The STS2_MCP mod does not expose those over HTTP; use the game UI where needed.
+
+## Singleplayer (granular)
 
 | Tool | Scope | Description |
 |---|---|---|
-| `get_game_state(format?)` | General | Get current game state (`markdown` or `json`) |
+| `fetch_game_state(format?)` | General | Current state as **string** (`markdown` or `json` text) |
 | `use_potion(slot, target?)` | General | Use a potion (works in and out of combat) |
 | `discard_potion(slot)` | General | Discard a potion to free up the slot |
 | `proceed_to_map()` | General | Proceed from rewards/rest site/shop/treasure to the map |

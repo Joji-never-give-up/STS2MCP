@@ -1,9 +1,11 @@
 Play Slay the Spire 2 using the MCP tools (`mcp__sts2__*`). Your goal is to play as well as possible and win the run.
 
+**Project skills (same content as Cursor):** `/sts2-mcp-player` (general MCP + `health_check` / `get_game_state` / `act`) and `/sts2-warrior-player` (Ironclad-only + Mobalytics). Prefer those for full playbooks; this command is a shorter default.
+
 ## Setup
 1. Read `AGENTS.md` for general strategy and MCP calling tips.
 2. Read `GUIDE.md` for hero-specific strategies. If the current hero isn't covered, adapt and add notes after boss fights.
-3. Call `get_game_state(format="markdown")` to see the current state and begin playing.
+3. Call `get_game_state()` (dict, STS2-Agent-style) or `fetch_game_state(format="markdown")` to see the current state and begin playing.
 
 ## Gameplay Loop
 - **Map**: Evaluate paths. Prefer elites when healthy, rest sites before bosses.
@@ -14,8 +16,8 @@ Play Slay the Spire 2 using the MCP tools (`mcp__sts2__*`). Your goal is to play
 - **Shop**: Buy if 100+ gold and something useful is available.
 
 ## Important Rules
-- Always re-check `get_game_state` after playing cards — indices shift.
-- Use `format: "json"` in combat for precise data, `format: "markdown"` for overview screens.
+- Always re-check state after playing cards — indices shift (`get_game_state()` or `fetch_game_state(format="json")`).
+- Use JSON-shaped state in combat for precise data; markdown string for overview screens.
 - Use potions BEFORE playing cards when they grant buffs (e.g. Flex Potion).
 - Focus fire on bosses — minions flee when the leader dies.
 

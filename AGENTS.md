@@ -3,9 +3,10 @@
 ## MCP Tool Calling Tips
 
 ### State Polling
-- After `combat_end_turn`, the state may show `is_play_phase: false` or `turn: enemy`. Call `get_game_state` again to advance to the next player turn.
-- Sometimes you need to call `get_game_state` twice — once to see enemy turn results, once to see your new hand.
-- Use `format: "json"` during combat for structured data; `format: "markdown"` for map/event overview.
+- After `combat_end_turn`, the state may show `is_play_phase: false` or `turn: enemy`. Call `get_game_state()` (dict) or `fetch_game_state(format="json")` again to advance to the next player turn.
+- Sometimes you need to call state twice — once to see enemy turn results, once to see your new hand.
+- **STS2-Agent-style loop (singleplayer):** `health_check` → `get_game_state` (dict with `available_actions`) → `act(...)` → repeat. Use `get_relevant_game_data` for card/relic text when needed.
+- **Granular tools:** use `fetch_game_state(format="json")` for string JSON, or `fetch_game_state(format="markdown")` for map/event overview.
 
 ### Card Index Shifting
 - **CRITICAL**: Playing a card removes it from hand and shifts all indices. Play cards from RIGHT to LEFT (highest index first) to keep lower indices stable, or re-check state between plays.
