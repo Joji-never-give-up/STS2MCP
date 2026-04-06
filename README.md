@@ -4,7 +4,13 @@
 
 <p align="center"><em>An Experimental Research Project to Fully-Automate your Slay the Spire 2 Runs</em></p>
 
-A mod for [**Slay the Spire 2**](https://store.steampowered.com/app/2868840/Slay_the_Spire_2/) that lets AI agents play the game. Exposes game state and actions via a localhost REST API, with an optional MCP server for Claude Desktop / Claude Code integration.
+A mod for [**Slay the Spire 2**](https://store.steampowered.com/app/2868840/Slay_the_Spire_2/) that lets AI agents play the game. Exposes game state and actions via a localhost REST API, with an optional **Python MCP server** ([`mcp/server.py`](mcp/server.py)) for Claude Desktop, **Claude Code**, **Cursor**, and similar clients.
+
+The MCP bridge includes:
+
+- **Granular tools** — one tool per action (e.g. `combat_play_card`, `map_choose_node`, …). Raw state as a string: **`fetch_game_state`** (`markdown` or `json` text).
+- **STS2-Agent–style guided tools (singleplayer)** — `health_check`, **`get_game_state`** (structured **dict** with synthesized `available_actions`), **`get_available_actions`**, **`act`**, plus **`get_game_data_item` / `get_game_data_items` / `get_relevant_game_data`** backed by bundled English metadata in [`mcp/data/eng`](mcp/data/eng). See [`mcp/README.md`](mcp/README.md) for the full tool list and what is **not** ported (menu actions, SSE waits, planner handoff, etc.).
+- **Agent skills** — [`sts2-mcp-player`](.cursor/skills/sts2-mcp-player/SKILL.md) (general play) and [`sts2-warrior-player`](.cursor/skills/sts2-warrior-player/SKILL.md) (Ironclad / Mobalytics-oriented). Same content is symlinked under [`.claude/skills/`](.claude/skills/) for **Claude Code** (`/sts2-mcp-player`, `/sts2-warrior-player`).
 
 Singleplayer and multiplayer (co-op) supported. Tested against STS2 `v0.99.1`.
 
@@ -18,39 +24,46 @@ Singleplayer and multiplayer (co-op) supported. Tested against STS2 `v0.99.1`.
 
 ### 1. Install the Mod
 
-Grab the [latest release](https://github.com/Gennadiyev/STS2MCP/releases/latest) and follow the instructions:
+Grab a release from the [upstream project](https://github.com/Gennadiyev/STS2MCP/releases/latest) (or build from source below), then:
 
 1. Copy `STS2_MCP.dll` and `STS2_MCP.json` to `<game_install>/mods/`
 2. Launch the game and enable mods in settings (a consent dialog appears on first launch)
 3. The mod starts an HTTP server on `localhost:15526` automatically
 
-### 2. Give Your AI Instructions to Interact with the Game
+### 2. Connect an AI client (MCP + skills)
 
-**Clone or download the repository**, then:
+**Requirements:** [Python 3.11+](https://www.python.org/) and [uv](https://docs.astral.sh/uv/). **Clone this repo** and use an **absolute path** to its `mcp/` directory in the config below.
 
-| I prefer a skill | I prefer an MCP Server |
-|---|---|
-| **Cursor:** open this repo as the workspace — Agent Skills under [`.cursor/skills/`](.cursor/skills/) load when relevant (e.g. [`sts2-mcp-player`](.cursor/skills/sts2-mcp-player/SKILL.md) for general play, [`sts2-warrior-player`](.cursor/skills/sts2-warrior-player/SKILL.md) for Ironclad-only). Still add MCP **`sts2`** below. The server exposes **STS2-Agent–style** tools (`health_check`, dict `get_game_state`, `act`, `get_relevant_game_data`) for **singleplayer**; see [`mcp/README.md`](mcp/README.md). **Any client:** also point the model at [`AGENTS.md`](AGENTS.md) and [`docs/raw-simplified.md`](docs/raw-simplified.md). | Requires [Python 3.11+](https://www.python.org/) and [uv](https://docs.astral.sh/uv/). Follow the instructions below ⬇️ |
+#### MCP server (`sts2`)
+
+Add this to **Cursor** MCP settings, **Claude Code** `.mcp.json`, or **Claude Desktop** `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "sts2": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/STS2_MCP/mcp", "python", "server.py"]
+      "args": ["run", "--directory", "/absolute/path/to/this/repo/mcp", "python", "server.py"]
     }
   }
 }
 ```
 
-**Claude Code**: add the same JSON to your project’s **`.mcp.json`** (or managed config). Agent Skills for Claude Code live under **`.claude/skills/`** (symlinked here to the same content as **`.cursor/skills/`**). After restarting Claude Code, invoke **`/sts2-mcp-player`** or **`/sts2-warrior-player`**, or let Claude load them when your request matches the skill `description` in each `SKILL.md`.
+The game must be running with the mod loaded (`localhost:15526` by default). The server accepts `--host` and `--port` if you changed the mod’s bind address. Use `--no-trust-env` if HTTP proxies break localhost in containers.
 
-**Claude Desktop**: add to `claude_desktop_config.json` with the same config as above.
-*Other agents should have similar config options for custom MCP servers.*
+#### Cursor
 
-The MCP server accepts `--host` and `--port` options if you need non-default settings.
+Open the **repository root** as the workspace so [`.cursor/skills/`](.cursor/skills/) is loaded. Optional skills: [`sts2-mcp-player`](.cursor/skills/sts2-mcp-player/SKILL.md), [`sts2-warrior-player`](.cursor/skills/sts2-warrior-player/SKILL.md).
 
-Flag `--no-trust-env` can be used to disable `requests` from picking up proxy settings from the environment, which can cause connection issues if you are running the server in a container.
+#### Claude Code
+
+Use the same MCP JSON as above. Skills live under [`.claude/skills/`](.claude/skills/) (symlinks to `.cursor/skills/`). After restart, run **`/sts2-mcp-player`** or **`/sts2-warrior-player`**, or rely on auto-discovery from each skill’s `description`. The shortcut command [`/playsts2`](.claude/commands/playsts2.md) is a shorter gameplay prompt.
+
+#### Everyone
+
+Read [`AGENTS.md`](AGENTS.md) for strategy and polling tips, [`docs/raw-simplified.md`](docs/raw-simplified.md) for HTTP `state_type` ↔ actions, and [`mcp/README.md`](mcp/README.md) for the full tool surface (granular vs guided).
+
+**Singleplayer guided loop:** `health_check` → `get_game_state` (dict) → `act` only with actions listed in `available_actions` → repeat; use `get_relevant_game_data` for card/relic text. **Multiplayer:** use `mp_get_game_state` and `mp_*` tools only — not the singleplayer `act` layer. Main menu / character select are **not** exposed over MCP; handle those in the game UI first.
 
 ## For Developers
 
@@ -75,6 +88,16 @@ The script builds `STS2_MCP.dll` into `out/STS2_MCP/`. Copy it along with the ma
 out/STS2_MCP/STS2_MCP.dll           ->  <game_install>/mods/STS2_MCP.dll
 mod_manifest.json                   ->  <game_install>/mods/STS2_MCP.json
 ```
+
+### Python MCP (this repo)
+
+| Path | Role |
+|------|------|
+| [`mcp/server.py`](mcp/server.py) | FastMCP entry: granular tools + guided `health_check` / `get_game_state` / `act` / game-data tools |
+| [`mcp/agent_layer.py`](mcp/agent_layer.py) | Maps `act` actions to the mod HTTP API |
+| [`mcp/sts2_game_data.py`](mcp/sts2_game_data.py) | Loads [`mcp/data/eng`](mcp/data/eng) for metadata queries |
+
+Run from `mcp/` with `uv sync` then `uv run python server.py` (or rely on the `uv run` args in your MCP client config).
 
 ## License
 
